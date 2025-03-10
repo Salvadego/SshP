@@ -1,4 +1,4 @@
-module github.com/matsal007/sshp
+module github.com/Salvadego/SshP
 
 go 1.24.1
 
