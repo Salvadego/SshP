@@ -119,26 +119,8 @@ post_install_message() {
 main() {
   check_go
   check_dependencies
-
-  echo -e "${BLUE}Installation methods:${NC}"
-  echo "1. Use go install (recommended)"
-  echo "2. Exit"
-  read -p "Select option (1/2): " OPTION
-
-  case $OPTION in
-    1)
-      install_with_go_install
-      post_install_message
-      ;;
-    2)
-      echo -e "${BLUE}Installation cancelled.${NC}"
-      exit 0
-      ;;
-    *)
-      echo -e "${RED}Invalid option. Please select 1, 2, or 3.${NC}"
-      exit 1
-      ;;
-  esac
+  install_with_go_install
+  post_install_message
 }
 
 main
