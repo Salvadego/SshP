@@ -19,17 +19,34 @@ A command-line tool to manage and easily connect to multiple SSH servers using p
 - For password authentication:
   - `sshpass` or `expect` (optional, but recommended for password-based logins)
 
-### Building from source
+### Quick Installation
+
+You can install SSH Profile Manager with a single command:
+
+```bash
+curl -sSL https://raw.githubusercontent.com/Salvadego/SshP/main/install.sh | bash
+```
+
+This script will:
+1. Check for Go and optional dependencies
+2. Install the tool using `go install`
+3. Verify that the installation was successful
+
+### Manual Installation
+
+#### Option 1: Using Go Install (Recommended)
+
+```bash
+go install github.com/Salvadego/SshP@latest
+```
+
+#### Option 2: Building from source
 
 ```bash
 git clone https://github.com/Salvadego/SshP.git
 cd sshp
-go build -o cmd/sshp .
-```
+go build -o sshp .
 
-### Installation
-
-```bash
 # Move the binary to a location in your PATH
 sudo mv sshp /usr/local/bin/
 ```
@@ -92,8 +109,6 @@ sshp remove myserver
 sshp --config /path/to/config.yaml list
 ```
 
-Make sure that the path is safe.
-
 ## Troubleshooting
 
 ### Password Authentication
@@ -104,7 +119,7 @@ For password authentication to work automatically:
    - Debian/Ubuntu: `sudo apt-get install sshpass`
    - macOS: `brew install hudochenkov/sshpass/sshpass`
 
-2. If `sshpass` is not available, sshp will try to use `expect`:
+2. If `sshpass` is not available, the tool will try to use `expect`:
    - Debian/Ubuntu: `sudo apt-get install expect`
    - macOS: `brew install expect`
 
