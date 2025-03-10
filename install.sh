@@ -62,7 +62,7 @@ check_dependencies() {
 install_with_go_install() {
   echo -e "${BLUE}Installing sshp using go install...${NC}"
 
-  MODULE_PATH="github.com/Salvadego/SshP/cmd/sshp"
+  MODULE_PATH="github.com/Salvadego/SshP/main/cmd/sshp"
 
   echo -e "${BLUE}Installing ...${NC}"
 
