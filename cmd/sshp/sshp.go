@@ -181,7 +181,7 @@ PowerShell:
 func init() {
 	cobra.OnInitialize(initConfig)
 
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.sshp.yaml)")
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $XDG_CONFIG_HOME/sshp/config.yaml)")
 
 	rootCmd.AddCommand(connectCmd)
 	rootCmd.AddCommand(listCmd)
@@ -207,28 +207,36 @@ func initConfig() {
 		Profiles: make(map[string]Profile),
 	}
 
-	home, err := os.UserHomeDir()
-	if err != nil {
-		fmt.Println(err)
+	configDir := getConfigDir()
+
+	if err := os.MkdirAll(configDir, 0755); err != nil {
+		fmt.Println("Error creating config directory:", err)
 		os.Exit(1)
 	}
-
-	keyFile = filepath.Join(home, ".sshp.key")
-	initEncryptionKey()
 
 	if cfgFile != "" {
 
 		viper.SetConfigFile(cfgFile)
 	} else {
-
-		viper.AddConfigPath(home)
-		viper.SetConfigName(".sshp")
-		viper.SetConfigType("yaml")
-		cfgFile = filepath.Join(home, ".sshp.yaml")
+		envConfigFile := os.Getenv("SSHP_CONFIG_FILE")
+		if envConfigFile != "" {
+			cfgFile = envConfigFile
+		} else {
+			cfgFile = filepath.Join(configDir, "config.yaml")
+		}
+		viper.SetConfigFile(cfgFile)
 	}
 
-	if _, err := os.Stat(cfgFile); err == nil {
+	keyFileEnv := os.Getenv("SSHP_KEY_FILE")
+	if keyFileEnv != "" {
+		keyFile = keyFileEnv
+	} else {
+		keyFile = filepath.Join(configDir, "sshp.key")
+	}
 
+	initEncryptionKey()
+
+	if _, err := os.Stat(cfgFile); err == nil {
 		data, err := os.ReadFile(cfgFile)
 		if err != nil {
 			fmt.Println("Error reading config file:", err)
@@ -241,7 +249,6 @@ func initConfig() {
 			os.Exit(1)
 		}
 	} else if os.IsNotExist(err) {
-
 		saveConfig()
 	} else {
 		fmt.Println("Error checking config file:", err)
@@ -261,6 +268,12 @@ func initConfig() {
 func initEncryptionKey() {
 
 	if _, err := os.Stat(keyFile); os.IsNotExist(err) {
+
+		keyDir := filepath.Dir(keyFile)
+		if err := os.MkdirAll(keyDir, 0700); err != nil {
+			fmt.Println("Error creating key directory:", err)
+			os.Exit(1)
+		}
 
 		key := make([]byte, 32)
 		if _, err := rand.Read(key); err != nil {
@@ -362,6 +375,12 @@ func decryptPassword(encryptedPassword string) string {
 }
 
 func saveConfig() {
+	configDir := filepath.Dir(cfgFile)
+	if err := os.MkdirAll(configDir, 0755); err != nil {
+		fmt.Println("Error creating config directory:", err)
+		os.Exit(1)
+	}
+
 	data, err := yaml.Marshal(config)
 	if err != nil {
 		fmt.Println("Error marshaling config:", err)
@@ -615,4 +634,22 @@ func profileNameCompletionFunc(cmd *cobra.Command, args []string, toComplete str
 		}
 	}
 	return profileNames, cobra.ShellCompDirectiveNoFileComp
+}
+
+func getConfigDir() string {
+	if envConfigDir := os.Getenv("SSHP_CONFIG_DIR"); envConfigDir != "" {
+		return envConfigDir
+	}
+
+	xdgConfigHome := os.Getenv("XDG_CONFIG_HOME")
+	if xdgConfigHome == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			fmt.Println("Error getting home directory:", err)
+			os.Exit(1)
+		}
+		xdgConfigHome = filepath.Join(home, ".config")
+	}
+
+	return filepath.Join(xdgConfigHome, "sshp")
 }
