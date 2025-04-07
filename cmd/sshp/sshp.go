@@ -346,6 +346,19 @@ func connectToProfile(profileName string) {
 		}
 	}
 
+	var err error
+	regularSSHAttempted := false
+
+	tryRegularSSH := func() error {
+		regularSSHAttempted = true
+		fmt.Printf("Connecting to profile: %s (%s@%s:%d)...\n", profileName, profile.User, profile.Host, profile.Port)
+		cmd := exec.Command("ssh", args...)
+		cmd.Stdin = os.Stdin
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		return cmd.Run()
+	}
+
 	if password != "" {
 		sshpassPath, err := exec.LookPath("sshpass")
 		if err == nil {
@@ -363,8 +376,13 @@ func connectToProfile(profileName string) {
 
 			err = cmd.Run()
 			if err != nil {
-				fmt.Println("Error connecting to SSH server:", err)
-				os.Exit(1)
+				if exitErr, ok := err.(*exec.ExitError); ok && exitErr.ExitCode() == 6 {
+					fmt.Println("Initial connection failed with exit status 6. Trying direct SSH login...")
+					err = tryRegularSSH()
+				} else {
+					fmt.Println("Error connecting to SSH server:", err)
+					os.Exit(1)
+				}
 			}
 
 			return
@@ -406,29 +424,29 @@ func connectToProfile(profileName string) {
 
 					err = cmd.Run()
 					if err != nil {
-						fmt.Println("Error running expect script:", err)
-						os.Exit(1)
+						if exitErr, ok := err.(*exec.ExitError); ok && exitErr.ExitCode() == 6 {
+							fmt.Println("Initial connection failed with exit status 6. Trying direct SSH login...")
+							err = tryRegularSSH()
+						} else {
+							fmt.Println("Error running expect script:", err)
+							os.Exit(1)
+						}
 					}
 
 					return
 				}
 			} else {
-				fmt.Println("Note: Neither 'sshpass' nor 'expect' found. You'll be prompted for password.")
+				fmt.Println("Note: Neither 'sshpass' nor 'expect' found. Trying direct SSH connection...")
 			}
 		}
 	}
 
-	cmd := exec.Command("ssh", args...)
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-
-	fmt.Printf("Connecting to profile: %s (%s@%s:%d)...\n", profileName, profile.User, profile.Host, profile.Port)
-
-	err := cmd.Run()
-	if err != nil {
-		fmt.Println("Error connecting to SSH server:", err)
-		os.Exit(1)
+	if !regularSSHAttempted {
+		err = tryRegularSSH()
+		if err != nil {
+			fmt.Println("Error connecting to SSH server:", err)
+			os.Exit(1)
+		}
 	}
 }
 
