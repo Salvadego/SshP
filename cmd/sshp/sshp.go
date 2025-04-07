@@ -60,10 +60,11 @@ var rootCmd = &cobra.Command{
 }
 
 var connectCmd = &cobra.Command{
-	Use:   "connect [profile-name]",
-	Short: "Connect to a server using a profile",
-	Long:  `Connect to an SSH server using a predefined profile from your configuration.`,
-	Args:  cobra.ExactArgs(1),
+	Use:               "connect [profile-name]",
+	Short:             "Connect to a server using a profile",
+	Long:              `Connect to an SSH server using a predefined profile from your configuration.`,
+	Args:              cobra.ExactArgs(1),
+	ValidArgsFunction: profileNameCompletionFunc,
 	Run: func(cmd *cobra.Command, args []string) {
 		profileName := args[0]
 		connectToProfile(profileName)
@@ -111,13 +112,69 @@ var addCmd = &cobra.Command{
 }
 
 var removeCmd = &cobra.Command{
-	Use:   "remove [profile-name]",
-	Short: "Remove an SSH profile",
-	Long:  `Remove an SSH profile from your configuration file.`,
-	Args:  cobra.ExactArgs(1),
+	Use:               "remove [profile-name]",
+	Short:             "Remove an SSH profile",
+	Long:              `Remove an SSH profile from your configuration file.`,
+	Args:              cobra.ExactArgs(1),
+	ValidArgsFunction: profileNameCompletionFunc,
 	Run: func(cmd *cobra.Command, args []string) {
 		profileName := args[0]
 		removeProfile(profileName)
+	},
+}
+
+var completionCmd = &cobra.Command{
+	Use:   "completion [bash|zsh|fish|powershell]",
+	Short: "Generate completion script",
+	Long: `To load completions:
+
+Bash:
+  $ source <(sshp completion bash)
+
+  # To load completions for each session, execute once:
+  # Linux:
+  $ sshp completion bash > /etc/bash_completion.d/sshp
+  # macOS:
+  $ sshp completion bash > /usr/local/etc/bash_completion.d/sshp
+
+Zsh:
+  # If shell completion is not already enabled in your environment,
+  # you will need to enable it.  You can execute the following once:
+
+  $ echo "autoload -U compinit; compinit" >> ~/.zshrc
+
+  # To load completions for each session, execute once:
+  $ sshp completion zsh > "${fpath[1]}/_sshp"
+
+  # You will need to start a new shell for this setup to take effect.
+
+Fish:
+  $ sshp completion fish | source
+
+  # To load completions for each session, execute once:
+  $ sshp completion fish > ~/.config/fish/completions/sshp.fish
+
+PowerShell:
+  PS> sshp completion powershell | Out-String | Invoke-Expression
+
+  # To load completions for every new session, run:
+  PS> sshp completion powershell > sshp.ps1
+  # and source this file from your PowerShell profile.
+`,
+	DisableFlagsInUseLine: true,
+	ValidArgs:             []string{"bash", "zsh", "fish", "powershell"},
+	Args:                  cobra.ExactValidArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		switch args[0] {
+		case "bash":
+			cmd.Root().GenBashCompletion(os.Stdout)
+		case "zsh":
+			cmd.Root().GenZshCompletion(os.Stdout)
+		case "fish":
+			cmd.Root().GenFishCompletion(os.Stdout, true)
+		case "powershell":
+			cmd.Root().GenPowerShellCompletionWithDesc(os.Stdout)
+		}
 	},
 }
 
@@ -130,6 +187,7 @@ func init() {
 	rootCmd.AddCommand(listCmd)
 	rootCmd.AddCommand(addCmd)
 	rootCmd.AddCommand(removeCmd)
+    rootCmd.AddCommand(completionCmd)
 
 	addCmd.Flags().String("host", "", "SSH server hostname or IP address")
 	addCmd.Flags().Int("port", 22, "SSH server port")
@@ -543,4 +601,18 @@ func removeProfile(name string) {
 	saveConfig()
 
 	fmt.Printf("Profile '%s' removed successfully.\n", name)
+}
+
+func profileNameCompletionFunc(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+	if !initialized {
+		initConfig()
+	}
+	
+	profileNames := make([]string, 0, len(config.Profiles))
+	for name := range config.Profiles {
+		if strings.HasPrefix(name, toComplete) {
+			profileNames = append(profileNames, name)
+		}
+	}
+	return profileNames, cobra.ShellCompDirectiveNoFileComp
 }
